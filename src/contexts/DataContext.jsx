@@ -11,7 +11,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
     ];
 
     export const DataProvider = ({ children }) => {
-      const { session, organization, loading: authLoading } = useAuth();
+      const { session, organization, loading: authLoading, refreshData: refreshAuthData } = useAuth();
       const [data, setData] = useState({});
       const [loading, setLoading] = useState(true);
       const [error, setError] = useState(null);
@@ -55,9 +55,13 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
             if (result.error) {
               hasError = true;
             }
-            newData[result.table] = result.data;
+            if (result.table === 'organizations' && result.data.length > 0) {
+              newData[result.table] = result.data[0];
+            } else {
+              newData[result.table] = result.data;
+            }
           });
-
+          
           setData(newData);
           if (hasError) {
             throw new Error("Algunos datos no se pudieron cargar. Por favor, refresca la página.");
@@ -75,10 +79,11 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
       }, []);
       
       const refreshData = useCallback(async () => {
+        await refreshAuthData();
         if (organization) {
           await fetchData(organization.id, true);
         }
-      }, [organization, fetchData]);
+      }, [organization, fetchData, refreshAuthData]);
 
       useEffect(() => {
         if (authLoading) {
@@ -113,12 +118,25 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
         return result;
       }, [refreshData]);
 
+      const updateOrganization = useCallback(async (updatedData) => {
+        if (!organization) throw new Error("No organization context");
+        const { data: result, error } = await supabase
+          .from('organizations')
+          .update(updatedData)
+          .eq('id', organization.id)
+          .select()
+          .single();
+        if (error) throw error;
+        await refreshData();
+        return result;
+      }, [organization, refreshData]);
+
       const deleteData = useCallback(async (table, id) => {
         const { error } = await supabase.from(table).delete().eq('id', id);
         if (error) throw error;
         await refreshData();
       }, [refreshData]);
-
+      
       const value = useMemo(() => ({
         data,
         loading,
@@ -127,7 +145,9 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
         addData,
         updateData,
         deleteData,
-      }), [data, loading, error, refreshData, addData, updateData, deleteData]);
+        updateOrganization,
+        organization: data.organizations,
+      }), [data, loading, error, refreshData, addData, updateData, deleteData, updateOrganization]);
 
       return (
         <DataContext.Provider value={value}>
