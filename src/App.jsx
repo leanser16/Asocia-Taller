@@ -26,7 +26,8 @@ function App() {
   );
 }
 
-const AuthenticatedAppWrapper = () => {
+// Envolvemos el componente en React.memo para evitar re-renderizados innecesarios.
+const AuthenticatedAppWrapper = React.memo(() => {
     const { loading: dataLoading, error } = useData();
 
     if (dataLoading) {
@@ -47,6 +48,9 @@ const AuthenticatedAppWrapper = () => {
     }
 
     return <AuthenticatedApp />;
-}
+});
+
+// Es una buena práctica darle un nombre para facilitar la depuración.
+AuthenticatedAppWrapper.displayName = 'AuthenticatedAppWrapper';
 
 export default App;
