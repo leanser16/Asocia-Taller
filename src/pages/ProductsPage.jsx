@@ -29,8 +29,8 @@ const pageVariants = {
 };
 
 const ProductsPage = () => {
-  const { data, addData, updateData, deleteData, loading } = useData();
-  const { sale_products = [], purchase_products = [], organizations = [] } = data;
+  const { data, addData, updateData, deleteData, loading, organization, updateOrganization } = useData();
+  const { sale_products = [], purchase_products = [] } = data;
   const [searchTerm, setSearchTerm] = useState('');
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [currentProduct, setCurrentProduct] = useState(null);
@@ -41,23 +41,24 @@ const ProductsPage = () => {
   const [workPriceHour, setWorkPriceHour] = useState(0);
 
   useEffect(() => {
-    if (organizations[0]?.work_price_hour !== undefined) {
-      setWorkPriceHour(organizations[0].work_price_hour);
+    if (organization?.work_price_hour !== undefined) {
+      setWorkPriceHour(organization.work_price_hour);
     }
-  }, [organizations]);
+  }, [organization]);
 
   const handleWorkPriceHourChange = (e) => {
     const value = e.target.value;
-    if (/^\d*$/.test(value)) {
+    // Allow only numbers
+    if (/^\d*\.?\d*$/.test(value)) {
       setWorkPriceHour(value);
     }
   };
 
   const handleWorkPriceHourBlur = async () => {
     const newPrice = parseFloat(workPriceHour) || 0;
-    if (organizations[0] && newPrice !== organizations[0].work_price_hour) {
+    if (organization && newPrice !== organization.work_price_hour) {
       try {
-        await updateData('organizations', organizations[0].id, { work_price_hour: newPrice });
+        await updateOrganization({ work_price_hour: newPrice });
         toast({ title: "Precio por Hora Actualizado" });
       } catch (error) {
         toast({ title: "Error", description: `No se pudo actualizar el precio por hora: ${error.message}`, variant: "destructive" });
@@ -74,15 +75,15 @@ const ProductsPage = () => {
         name: productData.name,
         description: productData.description,
         category: productData.category,
-        work_hours: parseFloat(productData.work_hours),
-        price: parseFloat(productData.price)
+        work_hours: parseFloat(productData.work_hours) || 0,
+        price: parseFloat(productData.price) || 0,
       };
-    } else {
+    } else { // Compra
       dataToSave = {
         name: productData.name,
         description: productData.description,
         category: productData.category,
-        cost: parseFloat(productData.cost)
+        cost: parseFloat(productData.cost) || 0,
       };
     }
 
@@ -127,7 +128,7 @@ const ProductsPage = () => {
 
   const renderTable = (products, type) => {
     const filteredProducts = products.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()));
-    const currentWorkPriceHour = organizations[0]?.work_price_hour || 0;
+    const currentWorkPriceHour = organization?.work_price_hour || 0;
 
     return (
       <div className="rounded-lg border overflow-hidden glassmorphism">
@@ -144,12 +145,20 @@ const ProductsPage = () => {
           <TableBody>
             {filteredProducts.length > 0 ? (
               filteredProducts.map((product) => {
-                const price = type === 'Venta' ? (product.work_hours || 0) * currentWorkPriceHour : product.cost;
+                let price;
+                if (type === 'Venta') {
+                  price = product.price > 0 
+                    ? product.price 
+                    : (product.work_hours || 0) * currentWorkPriceHour;
+                } else {
+                  price = product.cost || 0;
+                }
+                
                 return (
                   <TableRow key={product.id}>
                     <TableCell className="font-medium">{product.name}</TableCell>
                     <TableCell>{product.category}</TableCell>
-                    {type === 'Venta' && <TableCell>{product.work_hours || 0}</TableCell>}
+                    {type === 'Venta' && <TableCell>{product.work_hours || '-'}</TableCell>}
                     <TableCell>{formatCurrency(price)}</TableCell>
                     <TableCell className="text-right">
                       <Button variant="ghost" size="icon" onClick={() => openForm(product, type)}>
@@ -191,7 +200,7 @@ const ProductsPage = () => {
       <div className="flex flex-col md:flex-row items-center justify-between gap-4">
         <h1 className="text-3xl font-bold tracking-tight text-primary">Productos y Servicios</h1>
         <Button onClick={() => openForm(null, productType)} className="bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90 text-white w-full md:w-auto">
-          <PlusCircle className="mr-2 h-5 w-5" /> Nuevo Producto
+          <PlusCircle className="mr-2 h-5 w-5" /> Nuevo
         </Button>
       </div>
 
@@ -235,9 +244,9 @@ const ProductsPage = () => {
       <Dialog open={isFormOpen} onOpenChange={(isOpen) => { if (!isOpen) setCurrentProduct(null); setIsFormOpen(isOpen); }}>
         <DialogContent className="sm:max-w-lg glassmorphism">
           <DialogHeader>
-            <DialogTitle className="text-primary">{currentProduct ? 'Editar' : 'Nuevo'} Producto de {productType}</DialogTitle>
+            <DialogTitle className="text-primary">{currentProduct ? 'Editar' : 'Nuevo'} {productType === 'Venta' ? 'Producto o Servicio' : 'Producto para Compra'}</DialogTitle>
             <DialogDescription>
-              {currentProduct ? 'Modifica los datos del producto.' : 'Ingresa los datos del nuevo producto.'}
+              {currentProduct ? 'Modifica los datos del ítem.' : 'Ingresa los datos del nuevo ítem.'}
             </DialogDescription>
           </DialogHeader>
           <ProductForm
@@ -245,6 +254,7 @@ const ProductsPage = () => {
             productType={productType}
             onSave={handleSaveProduct}
             onCancel={() => { setIsFormOpen(false); setCurrentProduct(null); }}
+            workPriceHour={organization?.work_price_hour || 0}
           />
         </DialogContent>
       </Dialog>

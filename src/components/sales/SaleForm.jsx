@@ -4,7 +4,6 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import SaleFormHeader from '@/components/sales/SaleFormHeader';
 import SaleFormItems from '@/components/sales/SaleFormItems';
 import SaleFormPayment from '@/components/sales/SaleFormPayment';
-import ProductForm from '@/components/forms/ProductForm';
 import { useData } from '@/contexts/DataContext';
 import { formatCurrency } from '@/lib/utils';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
@@ -17,8 +16,8 @@ const letterOptions = {
   default: ['X']
 };
 
-const SaleForm = ({ sale, onSave, onCancel, onQuickAddCustomer, onQuickAddVehicle, statusConfig, paymentMethods, toast }) => {
-  const { data, addData } = useData();
+const SaleForm = ({ sale, onSave, onCancel, onQuickAddCustomer, onQuickAddVehicle, onQuickAddProduct, statusConfig, paymentMethods, toast }) => {
+  const { data } = useData();
   const { customers, vehicles, sale_products: saleProducts, sales: allSales } = data;
   const { organization } = useAuth();
   const workPriceHour = organization?.work_price_hour || 0;
@@ -58,8 +57,6 @@ const SaleForm = ({ sale, onSave, onCancel, onQuickAddCustomer, onQuickAddVehicl
   const [saleItems, setSaleItems] = useState(sale?.items || [{ productId: '', description: '', vehicleId: '', quantity: 1, unitPrice: 0, iva: getInitialIva(formData.type), total: 0 }]);
   const [payments, setPayments] = useState(() => getInitialPaymentMethods(sale));
   
-  const [isProductFormOpen, setIsProductFormOpen] = useState(false);
-
   const handleFormDataChange = useCallback((name, value) => {
     setFormData(prev => {
       const newFormData = { ...prev, [name]: value };
@@ -268,23 +265,6 @@ const SaleForm = ({ sale, onSave, onCancel, onQuickAddCustomer, onQuickAddVehicl
     onSave(saleDataToSave);
   };
 
-  const handleSaveQuickProduct = async (productData) => {
-    try {
-      const dataToSave = {
-        name: productData.name,
-        description: productData.description,
-        category: productData.category,
-        price: parseFloat(productData.price) || 0,
-        work_hours: parseFloat(productData.work_hours) || 0,
-      };
-      await addData('sale_products', dataToSave);
-      toast({ title: "Producto Creado", description: `El producto ${productData.name} ha sido creado.` });
-      setIsProductFormOpen(false);
-    } catch (error) {
-      toast({ title: "Error", description: `Error al crear producto: ${error.message}`, variant: "destructive" });
-    }
-  };
-
   const getAvailableStatuses = () => {
     if (formData.type === 'Presupuesto') {
       return ['Pendiente', 'Aceptado', 'Rechazado', 'Facturado'];
@@ -299,7 +279,6 @@ const SaleForm = ({ sale, onSave, onCancel, onQuickAddCustomer, onQuickAddVehicl
   const totalPaid = calculateTotalPaid();
 
   return (
-    <>
     <form onSubmit={handleSubmit} className="space-y-6 py-4 max-h-[70vh] overflow-y-auto pr-2">
       <SaleFormHeader
         formData={formData}
@@ -320,7 +299,7 @@ const SaleForm = ({ sale, onSave, onCancel, onQuickAddCustomer, onQuickAddVehicl
         customerId={formData.customer_id}
         documentType={formData.type}
         saleProducts={saleProducts || []}
-        onQuickAddProduct={() => setIsProductFormOpen(true)}
+        onQuickAddProduct={onQuickAddProduct}
       />
       
       <SaleFormPayment
@@ -340,20 +319,6 @@ const SaleForm = ({ sale, onSave, onCancel, onQuickAddCustomer, onQuickAddVehicl
         <Button type="submit" className="bg-primary hover:bg-primary/90">{sale ? 'Guardar Cambios' : 'Crear Documento'}</Button>
       </DialogFooter>
     </form>
-    <Dialog open={isProductFormOpen} onOpenChange={setIsProductFormOpen}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Nuevo Producto de Venta Rápido</DialogTitle>
-          <DialogDescription>Ingresa los datos del nuevo producto.</DialogDescription>
-        </DialogHeader>
-        <ProductForm 
-          onSave={handleSaveQuickProduct} 
-          onCancel={() => setIsProductFormOpen(false)} 
-          productType="Venta"
-        />
-      </DialogContent>
-    </Dialog>
-    </>
   );
 };
 

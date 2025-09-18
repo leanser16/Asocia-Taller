@@ -25,6 +25,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useSalesLogic } from '@/hooks/useSalesLogic';
+import ProductForm from '@/components/forms/ProductForm';
 
 const pageVariants = {
   initial: { opacity: 0, y: 20 },
@@ -62,6 +63,7 @@ const SalesPage = () => {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isCustomerFormOpen, setIsCustomerFormOpen] = useState(false);
   const [isVehicleFormOpen, setIsVehicleFormOpen] = useState(false);
+  const [isProductFormOpen, setIsProductFormOpen] = useState(false);
   const [isSummaryOpen, setIsSummaryOpen] = useState(false);
   const [saleToDelete, setSaleToDelete] = useState(null);
 
@@ -130,15 +132,32 @@ const SalesPage = () => {
         brand: vehicleData.brand,
         model: vehicleData.model,
         year: parseInt(vehicleData.year),
-        plate: vehicleData.licensePlate,
+        plate: vehicleData.plate,
         vin: vehicleData.chassisNumber,
         customer_id: vehicleData.customerId,
       };
       await addData('vehicles', dataToSave);
-      toast({ title: "Vehículo Creado", description: `El vehículo ${vehicleData.licensePlate} ha sido creado.` });
+      toast({ title: "Vehículo Creado", description: `El vehículo ${vehicleData.plate} ha sido creado.` });
       setIsVehicleFormOpen(false);
     } catch (error) {
       toast({ title: "Error", description: `Error al crear vehículo: ${error.message}`, variant: "destructive" });
+    }
+  };
+
+  const handleSaveQuickProduct = async (productData) => {
+    try {
+      const dataToSave = {
+        name: productData.name,
+        description: productData.description,
+        category: productData.category,
+        price: parseFloat(productData.price) || 0,
+        work_hours: parseFloat(productData.work_hours) || 0,
+      };
+      await addData('sale_products', dataToSave);
+      toast({ title: "Producto Creado", description: `El producto ${productData.name} ha sido creado.` });
+      setIsProductFormOpen(false);
+    } catch (error) {
+      toast({ title: "Error", description: `Error al crear producto: ${error.message}`, variant: "destructive" });
     }
   };
 
@@ -184,8 +203,17 @@ const SalesPage = () => {
     >
       <div className="flex flex-col md:flex-row items-center justify-between gap-4">
         <h1 className="text-3xl font-bold tracking-tight text-primary">Gestión de Ventas</h1>
-        <div className="flex gap-2 w-full md:w-auto">
-          <Button onClick={() => setIsSummaryOpen(true)} variant="outline" className="w-full">
+        <div className="flex flex-wrap gap-2 w-full md:w-auto">
+          <Button onClick={() => setIsCustomerFormOpen(true)} variant="outline" className="w-full md:w-auto">
+            <PlusCircle className="mr-2 h-5 w-5" /> Cliente
+          </Button>
+          <Button onClick={() => setIsVehicleFormOpen(true)} variant="outline" className="w-full md:w-auto">
+            <PlusCircle className="mr-2 h-5 w-5" /> Vehículo
+          </Button>
+          <Button onClick={() => setIsProductFormOpen(true)} variant="outline" className="w-full md:w-auto">
+            <PlusCircle className="mr-2 h-5 w-5" /> Producto/Servicio
+          </Button>
+          <Button onClick={() => setIsSummaryOpen(true)} variant="outline" className="w-full md:w-auto">
             <FileText className="mr-2 h-5 w-5" /> Generar Resumen
           </Button>
           <Button onClick={() => openForm()} className="bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90 text-white w-full md:w-auto">
@@ -259,6 +287,20 @@ const SalesPage = () => {
             customers={customers}
             onSave={handleSaveQuickVehicle}
             onCancel={() => setIsVehicleFormOpen(false)}
+          />
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isProductFormOpen} onOpenChange={setIsProductFormOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Nuevo Producto de Venta Rápido</DialogTitle>
+            <DialogDescription>Ingresa los datos del nuevo producto.</DialogDescription>
+          </DialogHeader>
+          <ProductForm 
+            onSave={handleSaveQuickProduct} 
+            onCancel={() => setIsProductFormOpen(false)} 
+            productType="Venta"
           />
         </DialogContent>
       </Dialog>

@@ -9,7 +9,16 @@ const VehicleForm = ({ vehicle, customers, onSave, onCancel }) => {
   const handleSubmit = (e) => {
     e.preventDefault();
     const formData = new FormData(e.target);
-    const vehicleData = Object.fromEntries(formData.entries());
+    const vehicleData = {
+      plate: formData.get('plate'),
+      customer_id: formData.get('customerId'),
+      brand: formData.get('brand'),
+      model: formData.get('model'),
+      year: formData.get('year'),
+      color: formData.get('color'),
+      vehicleType: formData.get('vehicleType'),
+      vin: formData.get('chassisNumber'),
+    };
     onSave(vehicleData);
   };
 

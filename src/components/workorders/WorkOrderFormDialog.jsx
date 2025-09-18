@@ -10,7 +10,7 @@ import { formatCurrency } from '@/lib/utils';
 import { PlusCircle, Trash2 } from 'lucide-react';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
-const ItemRow = ({ item, index, onChange, onRemove, type, products }) => {
+const ItemRow = ({ item, index, onChange, onRemove, type, products, onQuickAddProduct }) => {
     const handleProductChange = (productId) => {
         const product = products.find(p => p.id === productId);
         if (product) {
@@ -25,7 +25,7 @@ const ItemRow = ({ item, index, onChange, onRemove, type, products }) => {
         <div className="grid grid-cols-12 gap-2 items-center p-2 rounded-md border">
             <div className="col-span-12">
                 <Label>Descripcion</Label>
-                {products ? (
+                <div className="flex items-center gap-2">
                     <Select onValueChange={handleProductChange}>
                         <SelectTrigger>
                             <SelectValue placeholder={type === 'service' ? "Seleccionar un servicio" : "Seleccionar un producto"} />
@@ -36,13 +36,10 @@ const ItemRow = ({ item, index, onChange, onRemove, type, products }) => {
                             ))}
                         </SelectContent>
                     </Select>
-                ) : (
-                    <Input
-                        value={item.description}
-                        onChange={(e) => onChange(index, 'description', e.target.value)}
-                        placeholder={type === 'service' ? "Descripción del servicio" : "Descripción del producto"}
-                    />
-                )}
+                    <Button type="button" onClick={() => onQuickAddProduct(type === 'service' ? 'Venta' : 'Compra')} variant="outline" size="icon" className="min-w-max">
+                        <PlusCircle className="h-4 w-4" />
+                    </Button>
+                </div>
                 <Textarea
                     value={item.details || ''}
                     onChange={(e) => onChange(index, 'details', e.target.value)}
@@ -99,7 +96,7 @@ const ItemRow = ({ item, index, onChange, onRemove, type, products }) => {
     );
 };
 
-const WorkOrderFormDialog = ({ isOpen, onOpenChange, workOrder, onSave }) => {
+const WorkOrderFormDialog = ({ isOpen, onOpenChange, workOrder, onSave, onQuickAddCustomer, onQuickAddVehicle, onQuickAddProduct }) => {
     const { data } = useData();
     const { customers = [], vehicles = [], sale_products = [], purchase_products = [] } = data;
 
@@ -237,24 +234,34 @@ const WorkOrderFormDialog = ({ isOpen, onOpenChange, workOrder, onSave }) => {
                     </DialogDescription>
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="space-y-4 max-h-[80vh] overflow-y-auto p-2">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
-                        <div>
-                            <Label htmlFor="customer_id">Cliente</Label>
-                            <Select name="customer_id" value={formData.customer_id} onValueChange={(value) => handleSelectChange('customer_id', value)} required>
-                                <SelectTrigger><SelectValue placeholder="Selecciona un cliente" /></SelectTrigger>
-                                <SelectContent>{customers.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
-                            </Select>
-                        </div>
-                        <div>
-                            <Label htmlFor="vehicle_id">Vehículo</Label>
-                            <Select name="vehicle_id" value={formData.vehicle_id} onValueChange={(value) => handleSelectChange('vehicle_id', value)} required disabled={!formData.customer_id}>
-                                <SelectTrigger><SelectValue placeholder={!formData.customer_id ? "Selecciona un cliente primero" : "Sin vehículo específico"} /></SelectTrigger>
-                                <SelectContent>
-                                    {filteredVehicles.length > 0 ? filteredVehicles.map(v => <SelectItem key={v.id} value={v.id}>{`${v.brand} ${v.model} (${v.plate})`}</SelectItem>) : <SelectItem value="no-vehicles" disabled>No hay vehículos para este cliente</SelectItem>}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                    </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
+    <div>
+        <Label htmlFor="customer_id">Cliente</Label>
+        <div className="flex items-center gap-2">
+            <Select name="customer_id" value={formData.customer_id} onValueChange={(value) => handleSelectChange('customer_id', value)} required>
+                <SelectTrigger><SelectValue placeholder="Selecciona un cliente" /></SelectTrigger>
+                <SelectContent>{customers.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
+            </Select>
+            <Button type="button" onClick={() => onQuickAddCustomer(true)} variant="outline" size="icon" className="min-w-max">
+                <PlusCircle className="h-4 w-4" />
+            </Button>
+        </div>
+    </div>
+    <div>
+        <Label htmlFor="vehicle_id">Vehículo</Label>
+        <div className="flex items-center gap-2">
+            <Select name="vehicle_id" value={formData.vehicle_id} onValueChange={(value) => handleSelectChange('vehicle_id', value)} required disabled={!formData.customer_id}>
+                <SelectTrigger><SelectValue placeholder={!formData.customer_id ? "Selecciona un cliente primero" : "Sin vehículo específico"} /></SelectTrigger>
+                <SelectContent>
+                    {filteredVehicles.length > 0 ? filteredVehicles.map(v => <SelectItem key={v.id} value={v.id}>{`${v.brand} ${v.model} (${v.plate})`}</SelectItem>) : <SelectItem value="no-vehicles" disabled>No hay vehículos para este cliente</SelectItem>}
+                </SelectContent>
+            </Select>
+            <Button type="button" onClick={() => onQuickAddVehicle(true)} variant="outline" size="icon" className="min-w-max" disabled={!formData.customer_id}>
+                <PlusCircle className="h-4 w-4" />
+            </Button>
+        </div>
+    </div>
+</div>
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div>
@@ -283,6 +290,7 @@ const WorkOrderFormDialog = ({ isOpen, onOpenChange, workOrder, onSave }) => {
                                     onRemove={() => removeItem('service_items', index)}
                                     type="service"
                                     products={sale_products}
+                                    onQuickAddProduct={onQuickAddProduct}
                                 />
                             ))}
                         </div>
@@ -303,6 +311,7 @@ const WorkOrderFormDialog = ({ isOpen, onOpenChange, workOrder, onSave }) => {
                                     onRemove={() => removeItem('product_items', index)}
                                     type="product"
                                     products={purchase_products}
+                                    onQuickAddProduct={onQuickAddProduct}
                                 />
                             ))}
                         </div>

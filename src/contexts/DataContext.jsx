@@ -64,29 +64,19 @@ export const DataProvider = ({ children }) => {
   }, []);
 
   useEffect(() => {
-    // While authentication is loading, we show a loading screen and wait.
     if (authLoading) {
       setLoading(true);
       return;
     }
 
-    // Once auth is resolved, if we have an organization and we haven't performed the initial data fetch, we do it.
     if (orgId && !initialFetchDone) {
-      fetchData(orgId, false); // This function will set loading to false and initialFetchDone to true on completion.
-    }
-
-    // If auth is resolved and there is NO session object, it means the user is logged out.
-    // We reset the application state to be ready for the next login.
-    // This is more robust than checking for !orgId, which might flicker during a session refresh.
-    if (!session && !authLoading) {
+      fetchData(orgId);
+    } else if (!orgId && !authLoading) {
       setLoading(false);
       setData({});
-      // We only reset the flag if it was previously set, to avoid an unnecessary re-render.
-      if (initialFetchDone) {
-        setInitialFetchDone(false);
-      }
+      setInitialFetchDone(false);
     }
-  }, [session, orgId, authLoading, initialFetchDone, fetchData]);
+  }, [orgId, authLoading, initialFetchDone, fetchData]);
   
   const refreshData = useCallback(async () => {
     await refreshAuthData();

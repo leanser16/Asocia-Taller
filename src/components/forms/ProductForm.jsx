@@ -1,105 +1,73 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { DialogFooter } from '@/components/ui/dialog';
-import { useToast } from "@/components/ui/use-toast";
-import { useData } from '@/contexts/DataContext';
+import { Label } from "@/components/ui/label";
+import { Textarea } from '@/components/ui/textarea';
 import { formatCurrency } from '@/lib/utils';
 
-const ProductForm = ({ product, onSave, onCancel, productType }) => {
-  const { data } = useData();
-  const workPriceHour = data?.organizations?.[0]?.work_price_hour || 0;
-
-  const [formData, setFormData] = useState({
-    name: '',
-    description: '',
-    category: '',
-    price: '',
-    cost: '',
-    work_hours: '',
+const ProductForm = ({ product, productType, onSave, onCancel, workPriceHour = 0 }) => {
+  const getInitialFormData = () => ({
+    name: product?.name || '',
+    description: product?.description || '',
+    category: product?.category || '',
+    work_hours: product?.work_hours || '',
+    price: product?.price || '0.00',
+    cost: product?.cost || '0.00',
   });
-  const { toast } = useToast();
+
+  const [formData, setFormData] = useState(getInitialFormData);
 
   useEffect(() => {
-    if (product) {
-      setFormData({
-        name: product.name || '',
-        description: product.description || '',
-        category: product.category || '',
-        price: product.price || '',
-        cost: product.cost || '',
-        work_hours: product.work_hours || '',
-      });
-    } else {
-      setFormData({
-        name: '',
-        description: '',
-        category: '',
-        price: '',
-        cost: '',
-        work_hours: '',
-      });
-    }
-  }, [product]);
+    setFormData(getInitialFormData());
+  }, [product, productType]);
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
-    if ((name === 'cost' || name === 'work_hours' || name === 'price') && value !== '' && !/^\d*\.?\d*$/.test(value)) {
-        return;
+    let { name, value } = e.target;
+    if (name === 'work_hours' || name === 'price' || name === 'cost') {
+      if (value === '' || !/^[\d.]*$/.test(value)) {
+        // allow clearing the field or only numbers and dots
+      } else {
+        // No specific formatting here, just update state
+      }
     }
     setFormData(prev => ({ ...prev, [name]: value }));
   };
+  
+  const calculatedPrice = useMemo(() => {
+    const hours = parseFloat(formData.work_hours) || 0;
+    return hours * (workPriceHour || 0);
+  }, [formData.work_hours, workPriceHour]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!formData.name || !formData.category) {
-      toast({
-        title: "Error de validación",
-        description: "El Nombre y la Categoría del producto son obligatorios.",
-        variant: "destructive",
-      });
-      return;
-    }
     
-    const work_hours = parseFloat(formData.work_hours) || 0;
-    const cost = parseFloat(formData.cost) || 0;
-    let finalData = {...formData};
+    let dataToSave = { ...formData };
 
     if (productType === 'Venta') {
-      const price = parseFloat(formData.price) || 0;
-      finalData.work_hours = work_hours;
-      finalData.price = price > 0 ? price : (work_hours * workPriceHour);
-    } else { // Compra
-      if (isNaN(cost) || cost < 0) {
-          toast({
-              title: "Error de validación",
-              description: "El costo de compra debe ser un número válido.",
-              variant: "destructive",
-          });
-          return;
+      const finalPrice = parseFloat(dataToSave.price) || 0;
+      if (finalPrice === 0 && calculatedPrice > 0) {
+        dataToSave.price = calculatedPrice;
       }
-      finalData.cost = cost;
     }
-    onSave(finalData);
-  };
 
-  const calculatedPrice = (parseFloat(formData.work_hours) || 0) * workPriceHour;
+    onSave(dataToSave);
+  };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="space-y-2">
         <Label htmlFor="name">Nombre del Producto/Servicio</Label>
-        <Input id="name" name="name" value={formData.name} onChange={handleChange} placeholder="Ej: Cambio de aceite" required />
+        <Input id="name" name="name" value={formData.name} onChange={handleChange} placeholder="Ej: Cambio de Aceite" required />
       </div>
       <div className="space-y-2">
         <Label htmlFor="description">Descripción</Label>
-        <Input id="description" name="description" value={formData.description} onChange={handleChange} placeholder="Ej: Incluye filtro y aceite sintético" />
+        <Textarea id="description" name="description" value={formData.description} onChange={handleChange} placeholder="Detalles del producto o servicio" />
       </div>
       <div className="space-y-2">
         <Label htmlFor="category">Categoría</Label>
-        <Input id="category" name="category" value={formData.category} onChange={handleChange} placeholder="Ej: Mantenimiento" required />
+        <Input id="category" name="category" value={formData.category} onChange={handleChange} placeholder="Ej: Mantenimiento" />
       </div>
+
       {productType === 'Venta' && (
         <>
           <div className="space-y-2">
@@ -121,16 +89,18 @@ const ProductForm = ({ product, onSave, onCancel, productType }) => {
           </div>
         </>
       )}
+
       {productType === 'Compra' && (
         <div className="space-y-2">
-          <Label htmlFor="cost">Costo de Compra ($)</Label>
+          <Label htmlFor="cost">Costo</Label>
           <Input id="cost" name="cost" type="text" value={formData.cost} onChange={handleChange} placeholder="0.00" required />
         </div>
       )}
-      <DialogFooter className="pt-4">
+
+      <div className="flex justify-end gap-2 pt-4">
         <Button type="button" variant="outline" onClick={onCancel}>Cancelar</Button>
-        <Button type="submit">{product ? 'Guardar Cambios' : `Crear Producto`}</Button>
-      </DialogFooter>
+        <Button type="submit" className="bg-primary hover:bg-primary/90">{product ? 'Guardar Cambios' : 'Crear Producto'}</Button>
+      </div>
     </form>
   );
 };
