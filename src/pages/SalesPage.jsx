@@ -204,15 +204,6 @@ const SalesPage = () => {
       <div className="flex flex-col md:flex-row items-center justify-between gap-4">
         <h1 className="text-3xl font-bold tracking-tight text-primary">Gestión de Ventas</h1>
         <div className="flex flex-wrap gap-2 w-full md:w-auto">
-          <Button onClick={() => setIsCustomerFormOpen(true)} variant="outline" className="w-full md:w-auto">
-            <PlusCircle className="mr-2 h-5 w-5" /> Cliente
-          </Button>
-          <Button onClick={() => setIsVehicleFormOpen(true)} variant="outline" className="w-full md:w-auto">
-            <PlusCircle className="mr-2 h-5 w-5" /> Vehículo
-          </Button>
-          <Button onClick={() => setIsProductFormOpen(true)} variant="outline" className="w-full md:w-auto">
-            <PlusCircle className="mr-2 h-5 w-5" /> Producto/Servicio
-          </Button>
           <Button onClick={() => setIsSummaryOpen(true)} variant="outline" className="w-full md:w-auto">
             <FileText className="mr-2 h-5 w-5" /> Generar Resumen
           </Button>
