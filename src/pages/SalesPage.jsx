@@ -101,8 +101,37 @@ const SalesPage = () => {
     setCurrentSale(null);
   };
 
+  const getNextNumberForType = useCallback((type, pointOfSale = '0001') => {
+    const relevantSales = sales.filter(s =>
+        s.type === type &&
+        s.sale_number_parts &&
+        s.sale_number_parts.pointOfSale === pointOfSale
+    );
+
+    const maxNumber = relevantSales.reduce((max, s) => {
+        const num = parseInt(s.sale_number_parts.number, 10);
+        return !isNaN(num) && num > max ? num : max;
+    }, 0);
+
+    return maxNumber + 1;
+  }, [sales]);
+
   const openForm = (sale = null) => {
-    setCurrentSale(sale);
+    if (sale) {
+        setCurrentSale(sale);
+    } else {
+        const nextNumber = getNextNumberForType('Factura');
+        const newSaleTemplate = {
+            isNew: true,
+            type: 'Factura',
+            sale_number_parts: {
+                letter: 'A',
+                pointOfSale: '0001',
+                number: String(nextNumber).padStart(8, '0')
+            }
+        };
+        setCurrentSale(newSaleTemplate);
+    }
     setIsFormOpen(true);
   };
 
@@ -111,6 +140,7 @@ const SalesPage = () => {
   };
 
   const handlePrintSale = (sale) => {
+    console.log("Sale object before PDF generation:", sale); // Agregado para depuración
     const customer = customers.find(c => c.id === sale.customer_id);
     generateSalePDF(sale, customer, organization, user);
     toast({ title: "PDF Generado", description: `Se ha generado el PDF para ${sale.type} ${formatSaleNumber(sale)}.` });
@@ -171,7 +201,7 @@ const SalesPage = () => {
     let documentsToSummarize = [];
     if (summaryType === 'all') {
         documentsToSummarize = sales.filter(s => s.customer_id === customerId);
-    } else { // 'pending' is the other type from this page for now
+    } else {
         documentsToSummarize = sales.filter(s => s.customer_id === customerId && s.status === 'Pendiente de Pago' && s.balance > 0);
     }
     
@@ -235,11 +265,11 @@ const SalesPage = () => {
       />
 
       <Dialog open={isFormOpen} onOpenChange={(isOpen) => { if (!isOpen) setCurrentSale(null); setIsFormOpen(isOpen); }}>
-        <DialogContent className="sm:max-w-4xl h-[90vh] flex flex-col glassmorphism" aria-labelledby="sale-dialog-title">
+        <DialogContent className="sm:max-w-4xl h-[90vh] flex flex-col glassmorphism">
           <DialogHeader>
-            <DialogTitle id="sale-dialog-title" className="text-primary">{currentSale ? `Editar ${currentSale.type}` : 'Nuevo Documento de Venta'}</DialogTitle>
+            <DialogTitle className="text-primary">{currentSale?.isNew ? 'Nuevo Documento de Venta' : `Editar ${currentSale?.type}`}</DialogTitle>
             <DialogDescription>
-              {currentSale ? 'Modifica los detalles del documento.' : 'Ingresa los detalles del nuevo documento.'}
+              {currentSale?.isNew ? 'Ingresa los detalles del nuevo documento.' : 'Modifica los detalles del documento.'}
             </DialogDescription>
           </DialogHeader>
           <SaleForm

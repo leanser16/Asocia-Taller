@@ -24,10 +24,40 @@ const SaleForm = ({ sale, onSave, onCancel, onQuickAddCustomer, onQuickAddVehicl
   const saleDocumentNumberMode = organization?.sale_document_number_mode || 'automatic';
 
   const getInitialIva = (type) => {
-    if (type === 'Factura') return 21;
     if (type === 'Recibo') return 0;
-    return 21; 
+    return 21;
   };
+
+  const calculateItemIvaAmount = (item) => {
+    const quantity = parseFloat(item.quantity) || 0;
+    let unitPrice = parseFloat(item.unitPrice) || 0;
+    const iva = parseFloat(item.iva) || 0;
+    const discount = parseFloat(item.discount) || 0;
+
+    let priceForCalc = unitPrice;
+
+    if (item.calculationMode === 'total') {
+      priceForCalc = unitPrice / (1 + (iva / 100));
+    }
+
+    const subtotal = quantity * priceForCalc;
+    const discountAmount = subtotal * (discount / 100);
+    const subtotalAfterDiscount = subtotal - discountAmount;
+
+    return subtotalAfterDiscount * (iva / 100);
+  }
+
+  const getInitialItem = (type) => ({
+    productId: '',
+    description: '',
+    quantity: 1,
+    unitPrice: 0,
+    iva: getInitialIva(type),
+    ivaAmount: 0,
+    discount: 0,
+    calculationMode: 'net',
+    total: 0
+  });
 
   const getInitialPaymentMethods = (saleData) => {
     if (saleData && saleData.payment_methods && saleData.payment_methods.length > 0) {
@@ -35,28 +65,30 @@ const SaleForm = ({ sale, onSave, onCancel, onQuickAddCustomer, onQuickAddVehicl
     }
     return [{ method: 'Efectivo', amount: 0, checkDetails: null, dollarDetails: null }];
   };
-  
+
   const getInitialFormData = (sale) => {
     const type = sale?.type || 'Factura';
     return {
       sale_date: sale?.sale_date || new Date().toISOString().split('T')[0],
       due_date: sale?.due_date || new Date().toISOString().split('T')[0],
       customer_id: sale?.customer_id || null,
+      vehicle_id: sale?.vehicle_id || null,
       type: type,
       payment_type: sale?.payment_type || (type === 'Presupuesto' ? 'N/A' : 'Contado'),
       status: sale?.status || '',
       sale_number_parts: sale?.sale_number_parts || {
         letter: letterOptions[type]?.[0] || 'X',
         pointOfSale: '0001',
-        number: ''
+        number: '00000001'
       }
     };
   };
 
   const [formData, setFormData] = useState(getInitialFormData(sale));
-  const [saleItems, setSaleItems] = useState(sale?.items || [{ productId: '', description: '', vehicleId: '', quantity: 1, unitPrice: 0, iva: getInitialIva(formData.type), total: 0 }]);
+  const [saleItems, setSaleItems] = useState(sale?.items ? sale.items.map(item => ({...getInitialItem(formData.type), ...item, ivaAmount: calculateItemIvaAmount(item)})) : [getInitialItem(formData.type)]);
   const [payments, setPayments] = useState(() => getInitialPaymentMethods(sale));
-  
+  const [isFormValid, setIsFormValid] = useState(false);
+
   const handleFormDataChange = useCallback((name, value) => {
     setFormData(prev => {
       const newFormData = { ...prev, [name]: value };
@@ -65,51 +97,18 @@ const SaleForm = ({ sale, onSave, onCancel, onQuickAddCustomer, onQuickAddVehicl
           newFormData.sale_number_parts = { ...newFormData.sale_number_parts, letter: newLetterOptions[0]};
       }
       if (name === 'customer_id') {
-          setSaleItems(prevItems => prevItems.map(item => ({...item, vehicleId: ''})));
+          newFormData.vehicle_id = null;
       }
       return newFormData;
     });
   }, []);
 
-  const getNextSaleNumber = useCallback((type, pointOfSale) => {
-      if (!allSales || allSales.length === 0) return 1;
-
-      const relevantSales = allSales.filter(s => 
-        s.type === type && 
-        s.sale_number_parts && 
-        s.sale_number_parts.pointOfSale === pointOfSale
-      );
-
-      if (relevantSales.length === 0) return 1;
-
-      const maxNumber = relevantSales.reduce((max, s) => {
-        const num = parseInt(s.sale_number_parts.number, 10);
-        return !isNaN(num) && num > max ? num : max;
-      }, 0);
-
-      return maxNumber + 1;
-  }, [allSales]);
-
-  useEffect(() => {
-    if (!sale && saleDocumentNumberMode === 'automatic') {
-      const pointOfSale = formData.sale_number_parts.pointOfSale || '0001';
-      const nextNum = getNextSaleNumber(formData.type, pointOfSale);
-      const newNumber = String(nextNum).padStart(8, '0');
-      handleFormDataChange('sale_number_parts', {...formData.sale_number_parts, number: newNumber});
-    }
-  }, [formData.type, formData.sale_number_parts.pointOfSale, getNextSaleNumber, sale, saleDocumentNumberMode, handleFormDataChange]);
-
   useEffect(() => {
     if (sale) {
         setFormData(getInitialFormData(sale));
-        const items = Array.isArray(sale.items) ? sale.items : [{ productId: '', description: '', vehicleId: '', quantity: 1, unitPrice: 0, iva: getInitialIva(sale.type), total: 0 }];
-        setSaleItems(items.map(item => ({...item, vehicleId: item.vehicleId || ''})));
+        const items = Array.isArray(sale.items) ? sale.items : [getInitialItem(sale.type)];
+        setSaleItems(items.map(({ vehicleId, ...item }) => ({...getInitialItem(sale.type), ...item, ivaAmount: calculateItemIvaAmount(item)})));
         setPayments(getInitialPaymentMethods(sale));
-    } else {
-        const newInitialData = getInitialFormData(null);
-        setFormData(newInitialData);
-        setSaleItems([{ productId: '', description: '', vehicleId: '', quantity: 1, unitPrice: 0, iva: getInitialIva(newInitialData.type), total: 0 }]);
-        setPayments([{ method: 'Efectivo', amount: 0, checkDetails: null, dollarDetails: null }]);
     }
   }, [sale]);
 
@@ -128,45 +127,77 @@ const SaleForm = ({ sale, onSave, onCancel, onQuickAddCustomer, onQuickAddVehicl
         }
         return newFormData;
     })
-  }, [formData.type, formData.payment_type]);
+  }, [formData.type, formData.payment_type, payments.length]);
 
   useEffect(() => {
       const newIva = getInitialIva(formData.type);
       setSaleItems(items => items.map(item => {
-          const quantity = parseFloat(item.quantity) || 0;
-          const unitPrice = parseFloat(item.unitPrice) || 0;
-          const subtotal = quantity * unitPrice;
-          const total = subtotal + (subtotal * (newIva / 100));
-          return { ...item, iva: newIva, total: total };
+        const newItem = { ...item, iva: newIva };
+        const updatedItem = { ...newItem, ivaAmount: calculateItemIvaAmount(newItem) }; // Recalculate ivaAmount
+        return { ...updatedItem, total: calculateItemTotal(updatedItem) };
       }))
-  }, [formData.type, workPriceHour]);
-  
+  }, [formData.type]);
+
+  const calculateItemTotal = (item) => {
+    const quantity = parseFloat(item.quantity) || 0;
+    let unitPrice = parseFloat(item.unitPrice) || 0;
+    const iva = parseFloat(item.iva) || 0;
+    const discount = parseFloat(item.discount) || 0;
+
+    let priceForCalc = unitPrice;
+
+    if (item.calculationMode === 'total') {
+      priceForCalc = unitPrice / (1 + (iva / 100));
+    }
+
+    const subtotal = quantity * priceForCalc;
+    const discountAmount = subtotal * (discount / 100);
+    const subtotalAfterDiscount = subtotal - discountAmount;
+    const ivaAmount = subtotalAfterDiscount * (iva / 100);
+
+    return subtotalAfterDiscount + ivaAmount;
+  };
+
   const handleItemChange = (index, field, value) => {
     const newItems = [...saleItems];
-    const currentItem = { ...newItems[index] };
-    currentItem[field] = value;
+    const item = { ...newItems[index], [field]: value };
 
     if (field === 'productId') {
         const selectedProduct = saleProducts.find(p => p.id === value);
         if (selectedProduct) {
-            currentItem.description = selectedProduct.name;
+            item.description = selectedProduct.name;
             const calculatedPrice = (selectedProduct.work_hours || 0) * workPriceHour;
-            currentItem.unitPrice = calculatedPrice > 0 ? calculatedPrice : selectedProduct.price;
+            const basePrice = calculatedPrice > 0 ? calculatedPrice : (selectedProduct.price || 0);
+
+            if (item.calculationMode === 'total') {
+                item.unitPrice = basePrice * (1 + (item.iva / 100));
+            } else {
+                item.unitPrice = basePrice;
+            }
         }
     }
 
-    const quantity = parseFloat(currentItem.quantity) || 0;
-    const unitPrice = parseFloat(currentItem.unitPrice) || 0;
-    const subtotal = quantity * unitPrice;
-    const ivaPercent = parseFloat(currentItem.iva) || 0;
-    currentItem.total = subtotal * (1 + (ivaPercent / 100));
-    
-    newItems[index] = currentItem;
+    if (field === 'calculationMode') {
+        const unitPrice = parseFloat(item.unitPrice) || 0;
+        const iva = parseFloat(item.iva) || 0;
+        const previousMode = newItems[index].calculationMode;
+
+        if (value === 'total' && previousMode === 'net') {
+            item.unitPrice = unitPrice * (1 + (iva / 100));
+        } else if (value === 'net' && previousMode === 'total') {
+            item.unitPrice = unitPrice / (1 + (iva / 100));
+        }
+    }
+
+    item.ivaAmount = calculateItemIvaAmount(item); // Recalculate ivaAmount
+    item.total = calculateItemTotal(item);
+
+    newItems[index] = item;
     setSaleItems(newItems);
   };
 
   const addItem = () => {
-    setSaleItems([...saleItems, { productId: '', description: '', vehicleId: '', quantity: 1, unitPrice: 0, iva: getInitialIva(formData.type), total: 0 }]);
+    setSaleItems([...saleItems, getInitialItem(formData.type)]);
   };
 
   const removeItem = (index) => {
@@ -177,10 +208,29 @@ const SaleForm = ({ sale, onSave, onCancel, onQuickAddCustomer, onQuickAddVehicl
   const calculateGrandTotal = () => {
     return saleItems.reduce((sum, item) => sum + (parseFloat(item.total) || 0), 0);
   };
-  
+
   const calculateTotalPaid = () => {
     return payments.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
   };
+
+  useEffect(() => {
+    const grandTotal = calculateGrandTotal();
+    const totalPaid = calculateTotalPaid();
+    const difference = totalPaid - grandTotal;
+
+    let formIsValid = true;
+
+    if (!formData.customer_id) {
+        formIsValid = false;
+    }
+
+    if (formData.payment_type === 'Contado' && Math.abs(difference) > 0.01) {
+        formIsValid = false;
+    }
+
+    setIsFormValid(formIsValid);
+  }, [formData.customer_id, formData.payment_type, payments, saleItems, calculateGrandTotal, calculateTotalPaid]);
+
 
   const handlePaymentChange = (index, field, value) => {
     const newPayments = [...payments];
@@ -199,48 +249,46 @@ const SaleForm = ({ sale, onSave, onCancel, onQuickAddCustomer, onQuickAddVehicl
 
   const handleSubmit = (e) => {
     e.preventDefault();
-
-    if (!formData.customer_id) {
-        toast({
-            variant: "destructive",
-            title: "Falta el Cliente",
-            description: "Por favor, selecciona un cliente antes de guardar.",
-        });
-        return;
-    }
     
+    // The button is disabled if not valid, so these toasts are not strictly necessary for preventing submission,
+    // but can be re-added for immediate feedback if desired.
+    // if (!formData.customer_id) {
+    //     toast({
+    //         variant: "destructive",
+    //         title: "Falta el Cliente",
+    //         description: "Por favor, selecciona un cliente antes de guardar.",
+    //     });
+    //     return;
+    // }
+
     const grandTotal = calculateGrandTotal();
     const totalPaid = calculateTotalPaid();
-    const difference = totalPaid - grandTotal;
-
-    if (formData.payment_type === 'Contado' && Math.abs(difference) > 0.01) {
-      toast({
-        variant: "destructive",
-        title: "Error en el Monto del Pago",
-        description: `El monto pagado (${formatCurrency(totalPaid)}) no coincide con el total (${formatCurrency(grandTotal)}). ${difference > 0 ? 'Sobra' : 'Falta'} ${formatCurrency(Math.abs(difference))}.`,
-      });
-      return;
-    }
+    // No need to check difference here as button is disabled if not valid
 
     const saleNumberParts = {
       letter: formData.sale_number_parts.letter,
       pointOfSale: formData.sale_number_parts.pointOfSale,
       number: formData.sale_number_parts.number,
     };
-    
+
+    const selectedVehicle = vehicles.find(v => v.id === formData.vehicle_id);
+
     const saleDataToSave = {
       ...formData,
       customer_id: formData.customer_id || null,
+      vehicle_id: formData.vehicle_id || null,
+      vehicleName: selectedVehicle ? `${selectedVehicle.brand} ${selectedVehicle.model} (${selectedVehicle.plate})` : 'N/A',
       sale_number_parts: saleNumberParts,
       sale_number: `${saleNumberParts.letter}-${saleNumberParts.pointOfSale}-${saleNumberParts.number}`,
       items: saleItems.map(item => {
-        const selectedVehicle = vehicles.find(v => v.id === item.vehicleId);
+        const { vehicleId, ...rest } = item;
         return {
-          ...item,
-          vehicleName: selectedVehicle ? `${selectedVehicle.brand} ${selectedVehicle.model} (${selectedVehicle.plate})` : 'N/A',
+          ...rest,
           quantity: parseFloat(item.quantity) || 0,
           unitPrice: parseFloat(item.unitPrice) || 0,
           iva: parseFloat(item.iva) || 0,
+          ivaAmount: parseFloat(item.ivaAmount) || 0, // Ensure ivaAmount is saved
+          discount: parseFloat(item.discount) || 0,
           total: parseFloat(item.total) || 0,
         }
       }),
@@ -248,7 +296,7 @@ const SaleForm = ({ sale, onSave, onCancel, onQuickAddCustomer, onQuickAddVehicl
       payment_methods: payments
     };
 
-    if (sale) {
+    if (sale?.id) {
         saleDataToSave.status = formData.status;
     } else {
         if (saleDataToSave.type === 'Presupuesto') {
@@ -285,23 +333,22 @@ const SaleForm = ({ sale, onSave, onCancel, onQuickAddCustomer, onQuickAddVehicl
         onFormDataChange={handleFormDataChange}
         customers={customers || []}
         onQuickAddCustomer={onQuickAddCustomer}
+        vehicles={vehicles || []}
+        onQuickAddVehicle={onQuickAddVehicle}
         getAvailableStatuses={getAvailableStatuses}
         saleDocumentNumberMode={saleDocumentNumberMode}
       />
-      
+
       <SaleFormItems
         saleItems={saleItems}
         handleItemChange={handleItemChange}
         removeItem={removeItem}
         addItem={addItem}
-        vehicles={vehicles || []}
-        onQuickAddVehicle={onQuickAddVehicle}
-        customerId={formData.customer_id}
         documentType={formData.type}
         saleProducts={saleProducts || []}
         onQuickAddProduct={onQuickAddProduct}
       />
-      
+
       <SaleFormPayment
         formData={formData}
         onFormDataChange={handleFormDataChange}
@@ -316,7 +363,7 @@ const SaleForm = ({ sale, onSave, onCancel, onQuickAddCustomer, onQuickAddVehicl
 
       <DialogFooter className="pt-4">
         <Button type="button" variant="outline" onClick={onCancel}>Cancelar</Button>
-        <Button type="submit" className="bg-primary hover:bg-primary/90">{sale ? 'Guardar Cambios' : 'Crear Documento'}</Button>
+        <Button type="submit" className="bg-primary hover:bg-primary/90" disabled={!isFormValid}>{sale?.isNew ? 'Crear Documento' : 'Guardar Cambios'}</Button>
       </DialogFooter>
     </form>
   );

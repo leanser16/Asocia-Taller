@@ -212,6 +212,9 @@ export default defineConfig({
 		headers: {
 			'Cross-Origin-Embedder-Policy': 'credentialless',
 		},
+		 hmr: {
+		    clientPort: 443,
+		  },
 		allowedHosts: true,
 	},
 	resolve: {

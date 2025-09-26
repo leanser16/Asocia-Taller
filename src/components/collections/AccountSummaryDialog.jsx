@@ -1,104 +1,62 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 
-const AccountSummaryDialog = ({ 
-  isOpen, 
-  onOpenChange, 
-  customers, 
-  sales,
-  collections,
-  onGenerate, 
-  entityType = 'customer',
-  summaryType = 'pending' // 'pending', 'history', 'all'
-}) => {
-  const [selectedEntityId, setSelectedEntityId] = useState('');
-
-  const entities = useMemo(() => {
-    if (!customers) return [];
-    return customers;
-  }, [customers]);
+const AccountSummaryDialog = ({ isOpen, onOpenChange, customers, onGenerate, entityType, summaryType: initialSummaryType = 'all' }) => {
+  const [selectedCustomerId, setSelectedCustomerId] = useState('');
+  const [summaryType, setSummaryType] = useState(initialSummaryType);
 
   const handleGenerateClick = () => {
-    if (selectedEntityId) {
-      onGenerate(selectedEntityId, summaryType);
-      onOpenChange(false);
-      setSelectedEntityId('');
-    }
-  };
-
-  const getTitle = () => {
-    const entityName = entityType === 'customer' ? 'Cliente' : 'Proveedor';
-    switch (summaryType) {
-      case 'pending': return `Resumen de Deuda de ${entityName}`;
-      case 'history': return `Historial de Cobros de ${entityName}`;
-      case 'all': return `Resumen Total de Documentos de ${entityName}`;
-      default: return `Generar Resumen de ${entityName}`;
-    }
-  };
-
-  const getDescription = () => {
-    const entityName = entityType === 'customer' ? 'un cliente' : 'un proveedor';
-    switch (summaryType) {
-      case 'pending': return `Selecciona ${entityName} para generar un PDF con sus facturas pendientes de pago.`;
-      case 'history': return `Selecciona ${entityName} para generar un PDF con su historial de cobros realizados.`;
-      case 'all': return `Selecciona ${entityName} para generar un PDF con todos sus documentos de venta.`;
-      default: return `Selecciona ${entityName} para generar un resumen.`;
+    if (selectedCustomerId) {
+      onGenerate(selectedCustomerId, summaryType);
     }
   };
   
-  const getLabel = () => {
-     return entityType === 'customer' ? 'Cliente' : 'Proveedor';
-  }
-  
-  const getPlaceholder = () => {
-    return entityType === 'customer' ? 'Selecciona un cliente...' : 'Selecciona un proveedor...';
-  }
-
-  const getNoDataText = () => {
-    return entityType === 'customer' ? 'No hay clientes' : 'No hay proveedores';
-  }
-
+  const entityName = entityType === 'customer' ? 'Cliente' : 'Proveedor';
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md glassmorphism">
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-primary">{getTitle()}</DialogTitle>
+          <DialogTitle>Generar Resumen de Cuenta</DialogTitle>
           <DialogDescription>
-            {getDescription()}
+            Selecciona un {entityName.toLowerCase()} y el tipo de resumen que deseas generar.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-4">
           <div className="space-y-2">
-            <Label htmlFor="entity-select">{getLabel()}</Label>
-            <Select value={selectedEntityId} onValueChange={setSelectedEntityId}>
-              <SelectTrigger id="entity-select">
-                <SelectValue placeholder={getPlaceholder()} />
+            <Label htmlFor="customer-select">Seleccionar {entityName}</Label>
+            <Select onValueChange={setSelectedCustomerId} value={selectedCustomerId}>
+              <SelectTrigger id="customer-select">
+                <SelectValue placeholder={`-- Elige un ${entityName.toLowerCase()} --`} />
               </SelectTrigger>
               <SelectContent>
-                {entities.length > 0 ? (
-                  entities.map(entity => (
-                    <SelectItem key={entity.id} value={entity.id}>
-                      {entity.name}
-                    </SelectItem>
-                  ))
-                ) : (
-                  <SelectItem value="no-entities" disabled>
-                    {getNoDataText()}
+                {customers.map(customer => (
+                  <SelectItem key={customer.id} value={customer.id}>
+                    {customer.name}
                   </SelectItem>
-                )}
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="summary-type">Tipo de Resumen</Label>
+            <Select onValueChange={setSummaryType} value={summaryType}>
+              <SelectTrigger id="summary-type">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Completo (Todos los Documentos)</SelectItem>
+                <SelectItem value="pending">Deuda (Solo Saldos Pendientes)</SelectItem>
               </SelectContent>
             </Select>
           </div>
         </div>
         <DialogFooter>
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-          <Button type="button" onClick={handleGenerateClick} disabled={!selectedEntityId}>
-            Generar PDF
-          </Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
+          <Button onClick={handleGenerateClick} disabled={!selectedCustomerId}>Generar PDF</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

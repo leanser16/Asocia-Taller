@@ -54,8 +54,7 @@ const WorkOrderDetailDialog = ({ isOpen, onOpenChange, workOrder, statusColors }
   const { user, organization } = useAuth();
   const { customers = [], vehicles = [] } = data;
 
-  if (!workOrder) return null;
-
+  if (!workOrd// --- Robust Parsing Logic ---
   const separator = '---DATA---';
   const separatorIndex = (workOrder.notes || '').indexOf(separator);
   let userNotes = '';
@@ -86,10 +85,16 @@ const WorkOrderDetailDialog = ({ isOpen, onOpenChange, workOrder, statusColors }
     return sum + itemTotal;
   }, 0);
 
-  const handlePrint = () => {
+  const handlePrint = async () => {
     const customer = customers.find(c => c.id === workOrder.customer_id);
     const vehicle = vehicles.find(v => v.id === workOrder.vehicle_id);
-    generateWorkOrderPDF(workOrder, customer, vehicle, organization, user, extraData, totalGeneral);
+    try {
+      await generateWorkOrderPDF(workOrder, customer, vehicle, organization, user, extraData, userNotes);
+      console.log("PDF generation initiated.");
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+      // Optionally, show a toast or alert to the user
+    }
   };
 
   const dialogTitleId = `work-order-detail-title-${workOrder.id}`;
@@ -129,17 +134,11 @@ const WorkOrderDetailDialog = ({ isOpen, onOpenChange, workOrder, statusColors }
               </div>
             )}
 
-            {totalGeneral > 0 && 
-              <div className="text-right text-xl font-bold text-primary pr-2 pt-3">
-                Total General: {formatCurrency(totalGeneral)}
-              </div>
-            }
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2 p-3 rounded-lg bg-card/50 mt-4">
-              <p><strong className="text-muted-foreground">Asignado a:</strong> {workOrder.assigned_to || 'Sin Asignar'}</p>
-              <p><strong className="text-muted-foreground">Estado:</strong> <Badge className={`${statusColors[workOrder.status]} text-white`}>{workOrder.status}</Badge></p>
-            </div>
+            <p className="text-right text-lg font-bold text-primary">Total (IVA Incl.): {formatCurrency(calculateTotal())}</p>
 
+            <p><strong className="text-muted-foreground">Asignado a:</strong> {workOrder.assigned_to || 'Sin Asignar'}</p>
+            <div><strong className="text-muted-foreground">Estado:</strong> <Badge className={`${statusColors[workOrder.status]} text-white`}>{workOrder.status}</Badge></div>
+            
             {userNotes && (
               <div>
                 <strong className="text-muted-foreground">Notas Adicionales:</strong>

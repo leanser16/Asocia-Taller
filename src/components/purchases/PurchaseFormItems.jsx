@@ -22,6 +22,7 @@ const PurchaseFormItems = ({ purchaseItems, handleItemChange, removeItem, addIte
             purchaseProducts={purchaseProducts}
             onQuickAddProduct={onQuickAddProduct}
             isCreditNote={false}
+            ivaAmount={item.ivaAmount} // Pass ivaAmount here
           />
         ))}
         <Button type="button" variant="outline" onClick={addItem} className="w-full">

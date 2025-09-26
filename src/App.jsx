@@ -1,5 +1,4 @@
 import React from 'react';
-import { BrowserRouter as Router } from 'react-router-dom';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { useData } from '@/contexts/DataContext';
 import AuthenticatedApp from '@/components/layout/AuthenticatedApp';
@@ -19,13 +18,14 @@ function App() {
   }
 
   return (
-    <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+    <>
       {session && user ? <AuthenticatedAppWrapper key={appKey} /> : <UnauthenticatedApp />}
       <Toaster />
-    </Router>
+    </>
   );
 }
 
+// Envolvemos el componente en React.memo para evitar re-renderizados innecesarios.
 const AuthenticatedAppWrapper = React.memo(() => {
     const { loading: dataLoading, error } = useData();
 
@@ -49,6 +49,7 @@ const AuthenticatedAppWrapper = React.memo(() => {
     return <AuthenticatedApp />;
 });
 
+// Es una buena práctica darle un nombre para facilitar la depuración.
 AuthenticatedAppWrapper.displayName = 'AuthenticatedAppWrapper';
 
 export default App;

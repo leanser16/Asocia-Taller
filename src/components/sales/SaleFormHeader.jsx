@@ -3,13 +3,22 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { UserPlus } from 'lucide-react';
+import { UserPlus, Car, PlusCircle } from 'lucide-react';
 
-const SaleFormHeader = ({ formData, onFormDataChange, onQuickAddCustomer, customers, saleDocumentNumberMode }) => {
+const SaleFormHeader = ({
+  formData,
+  onFormDataChange,
+  onQuickAddCustomer,
+  onQuickAddVehicle,
+  customers,
+  vehicles,
+  saleDocumentNumberMode
+}) => {
   const [documentNumber, setDocumentNumber] = useState('');
   const [pointOfSale, setPointOfSale] = useState('');
-  
+
   const isDocumentNumberEditable = saleDocumentNumberMode === 'manual';
+  const customerVehicles = vehicles.filter(v => v.customer_id === formData.customer_id);
 
   useEffect(() => {
     setDocumentNumber(formData.sale_number_parts?.number || '');
@@ -28,12 +37,18 @@ const SaleFormHeader = ({ formData, onFormDataChange, onQuickAddCustomer, custom
 
   const handleDocumentNumberBlur = () => {
     if (isDocumentNumberEditable) {
-      const paddedNumber = documentNumber.padStart(8, '0');
-      setDocumentNumber(paddedNumber);
-      onFormDataChange('sale_number_parts', { ...formData.sale_number_parts, number: paddedNumber });
+        let num = parseInt(documentNumber, 10) || 0;
+        if (num === 0) {
+            num = 1;
+        }
+        const paddedNumber = String(num).padStart(8, '0');
+        setDocumentNumber(paddedNumber);
+        onFormDataChange('sale_number_parts', { ...formData.sale_number_parts, number: paddedNumber });
+    } else {
+        setDocumentNumber(formData.sale_number_parts.number);
     }
   };
-  
+
   const handlePointOfSaleChange = (e) => {
     const value = e.target.value;
     if (/^\d*$/.test(value) && value.length <= 4) {
@@ -41,7 +56,7 @@ const SaleFormHeader = ({ formData, onFormDataChange, onQuickAddCustomer, custom
       onFormDataChange('sale_number_parts', { ...formData.sale_number_parts, pointOfSale: value });
     }
   };
-  
+
   const handlePointOfSaleBlur = () => {
     const paddedPointOfSale = pointOfSale.padStart(4, '0');
     setPointOfSale(paddedPointOfSale);
@@ -49,7 +64,7 @@ const SaleFormHeader = ({ formData, onFormDataChange, onQuickAddCustomer, custom
   };
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
       <div className="space-y-1">
         <Label htmlFor="sale_date">Fecha Emisión</Label>
         <Input id="sale_date" name="sale_date" type="date" value={formData.sale_date} onChange={(e) => onFormDataChange('sale_date', e.target.value)} required />
@@ -61,7 +76,7 @@ const SaleFormHeader = ({ formData, onFormDataChange, onQuickAddCustomer, custom
       <div className="space-y-1">
         <Label htmlFor="customer_id">Cliente</Label>
         <div className="flex gap-2">
-          <Select name="customer_id" value={formData.customer_id} onValueChange={(value) => onFormDataChange('customer_id', value)} required>
+          <Select name="customer_id" value={formData.customer_id || ''} onValueChange={(value) => onFormDataChange('customer_id', value)} required>
             <SelectTrigger>
               <SelectValue placeholder="Selecciona un cliente" />
             </SelectTrigger>
@@ -71,6 +86,33 @@ const SaleFormHeader = ({ formData, onFormDataChange, onQuickAddCustomer, custom
           </Select>
           <Button type="button" variant="outline" size="icon" onClick={onQuickAddCustomer}>
             <UserPlus className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+      <div className="space-y-1">
+        <Label htmlFor="vehicle_id">Vehículo</Label>
+        <div className="flex gap-2">
+          <Select
+            name="vehicle_id"
+            value={formData.vehicle_id || 'none'}
+            onValueChange={(value) => onFormDataChange('vehicle_id', value === 'none' ? null : value)}
+            disabled={!formData.customer_id}
+          >
+            <SelectTrigger>
+              <Car className="mr-2 h-4 w-4 opacity-50" />
+              <SelectValue placeholder={!formData.customer_id ? "Seleccione un cliente" : "Seleccionar vehículo"} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">Sin vehículo específico</SelectItem>
+              {customerVehicles.map(v => (
+                <SelectItem key={v.id} value={v.id}>
+                  {v.brand} {v.model} ({v.plate})
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button type="button" variant="outline" size="icon" onClick={onQuickAddVehicle} disabled={!formData.customer_id} aria-label="Agregar Vehículo">
+            <PlusCircle className="h-4 w-4" />
           </Button>
         </div>
       </div>
@@ -91,7 +133,7 @@ const SaleFormHeader = ({ formData, onFormDataChange, onQuickAddCustomer, custom
       <div className="col-span-1 lg:col-span-2 space-y-1">
         <Label>Número de Documento</Label>
         <div className="grid grid-cols-3 gap-2">
-          <Select 
+          <Select
             name="documentLetter"
             value={formData.sale_number_parts?.letter || ''}
             onValueChange={(value) => onFormDataChange('sale_number_parts', { ...formData.sale_number_parts, letter: value })}
@@ -104,14 +146,14 @@ const SaleFormHeader = ({ formData, onFormDataChange, onQuickAddCustomer, custom
               <SelectItem value="X">X</SelectItem>
             </SelectContent>
           </Select>
-           <Input 
-            name="documentPointOfSale" 
-            placeholder="0001" 
-            value={pointOfSale} 
+           <Input
+            name="documentPointOfSale"
+            placeholder="0001"
+            value={pointOfSale}
             onChange={handlePointOfSaleChange}
             onBlur={handlePointOfSaleBlur}
           />
-          <Input 
+          <Input
             name="documentNumber"
             placeholder="00000001"
             value={documentNumber}

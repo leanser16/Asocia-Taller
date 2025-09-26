@@ -5,7 +5,7 @@ export const useSalesLogic = ({ sales, customers, addData, updateData, deleteDat
 
   const handleSaveSale = useCallback(async (saleData, currentSale) => {
     try {
-        const isEditing = !!currentSale;
+        const isEditing = !!currentSale?.id;
         
         const dataToSave = {
             customer_id: saleData.customer_id,
@@ -92,7 +92,7 @@ export const useSalesLogic = ({ sales, customers, addData, updateData, deleteDat
             }
         }
         await deleteData('sales', saleId);
-        toast({ title: "Documento Eliminado", description: `El documento ha sido eliminado junto con sus cheques asociados.`, variant: "destructive" });
+        toast({ title: "Documento Eliminado", description: `El documento ha sido eliminado.`, variant: "destructive" });
     } catch (error) {
         toast({ title: "Error", description: `Error al eliminar: ${error.message}`, variant: "destructive" });
     }

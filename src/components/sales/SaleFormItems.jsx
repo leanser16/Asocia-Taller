@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { PlusCircle } from 'lucide-react';
 import SaleItemRow from '@/components/sales/SaleItemRow';
 
-const SaleFormItems = ({ saleItems, handleItemChange, removeItem, addItem, vehicles, onQuickAddVehicle, customerId, documentType, saleProducts, onQuickAddProduct }) => {
+const SaleFormItems = ({ saleItems, handleItemChange, removeItem, addItem, documentType, saleProducts, onQuickAddProduct }) => {
   return (
     <Card>
       <CardHeader>
@@ -19,9 +19,6 @@ const SaleFormItems = ({ saleItems, handleItemChange, removeItem, addItem, vehic
             handleItemChange={handleItemChange}
             removeItem={removeItem}
             canRemove={saleItems.length > 1}
-            vehicles={vehicles}
-            onQuickAddVehicle={onQuickAddVehicle}
-            customerId={customerId}
             documentType={documentType}
             saleProducts={saleProducts}
             onQuickAddProduct={onQuickAddProduct}

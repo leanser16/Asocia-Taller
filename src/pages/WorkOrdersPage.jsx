@@ -19,6 +19,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
+
 const pageVariants = {
   initial: { opacity: 0, y: 20 },
   in: { opacity: 1, y: 0 },
@@ -119,6 +120,7 @@ const WorkOrdersPage = () => {
   const [productFormType, setProductFormType] = useState('Venta');
   const [activeTab, setActiveTab] = useState('en-proceso');
 
+
   const ordersWithDetails = useMemo(() => {
     if (!work_orders || !customers || !vehicles) return [];
     return work_orders.map(order => {
@@ -168,10 +170,17 @@ const WorkOrdersPage = () => {
     [ordersWithDetails, searchTerm]
   );
 
-  const enProcesoOrders = useMemo(() => filteredOrders.filter(order => order.status !== 'Finalizado'), [filteredOrders]);
-  const realizadasOrders = useMemo(() => filteredOrders.filter(order => order.status === 'Finalizado'), [filteredOrders]);
+  const inProcessOrders = useMemo(() =>
+    filteredOrders.filter(order => order.status !== 'Finalizado'),
+    [filteredOrders]
+  );
 
-  const handleSaveOrder = async (orderData, isEditing) => {
+  const finishedOrders = useMemo(() =>
+    filteredOrders.filter(order => order.status === 'Finalizado'),
+    [filteredOrders]
+  );
+
+  const handleSaveOrder = async (orderData) => {
     try {
       if (isEditing) {
         await updateData('work_orders', currentOrder.id, orderData);
@@ -251,10 +260,87 @@ const WorkOrdersPage = () => {
     }
   };
 
-  if (loading) return <div className="flex items-center justify-center h-full">Cargando órdenes de trabajo...</div>;
-
+  if (loading) {
+    return <div className="flex items-center justify-center h-full">Cargando órdenes de trabajo...</div>;
+  }
+  const renderTable = (orders) => (
+    <div className="rounded-lg border overflow-hidden glassmorphism">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>N° Orden</TableHead>
+            <TableHead>Cliente</TableHead>
+            <TableHead>Vehículo</TableHead>
+            <TableHead>Fecha Ingreso</TableHead>
+            <TableHead>Estado</TableHead>
+            <TableHead>Costo Final</TableHead>
+            <TableHead className="text-right">Acciones</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {orders.length > 0 ? (
+            orders.map((order) => (
+              <TableRow key={order.id}>
+                <TableCell className="font-medium">{order.order_number}</TableCell>
+                <TableCell>{order.customerName}</TableCell>
+                <TableCell>{order.vehicleInfo}</TableCell>
+                <TableCell>{formatDate(order.creation_date)}</TableCell>
+                <TableCell>
+                  <Select value={order.status} onValueChange={(newStatus) => handleStatusChange(order.id, newStatus)}>
+                      <SelectTrigger className="w-[140px] border-none !bg-transparent p-0 focus:ring-0">
+                          <SelectValue>
+                              <Badge className={`${statusConfig[order.status]} hover:${statusConfig[order.status]} text-white`}>
+                                  {order.status}
+                              </Badge>
+                          </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                          {Object.keys(statusConfig).map(status => (
+                          <SelectItem key={status} value={status}>
+                              {status}
+                          </SelectItem>
+                          ))}
+                      </SelectContent>
+                  </Select>
+                </TableCell>
+                <TableCell>{formatCurrency(order.final_cost || 0)}</TableCell>
+                <TableCell className="text-right">
+                  <div className='flex items-center justify-end space-x-2'>
+                    <Button variant='outline' size='icon' onClick={() => openDetail(order)}>
+                      <Eye className='h-4 w-4' />
+                    </Button>
+                    <Separator orientation='vertical' className='h-6' />
+                    <Button variant='outline' size='icon' onClick={() => openForm(order)}>
+                      <Edit className='h-4 w-4' />
+                    </Button>
+                    <Separator orientation='vertical' className='h-6' />
+                    <Button variant='destructive' size='icon' onClick={() => confirmDelete(order.id)}>
+                      <Trash2 className='h-4 w-4' />
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))
+          ) : (
+            <TableRow>
+              <TableCell colSpan="7" className="text-center">
+                No se encontraron órdenes de trabajo.
+              </TableCell>
+            </TableRow>
+          )}
+        </TableBody>
+      </Table>
+    </div>
+  );
   return (
-    <motion.div initial="initial" animate="in" exit="out" variants={pageVariants} transition={{ duration: 0.5 }} className="space-y-6">
+    <motion.div
+      initial="initial"
+      animate="in"
+      exit="out"
+      variants={pageVariants}
+      transition={{ duration: 0.5 }}
+      className="space-y-6"
+    >
       <div className="flex flex-col md:flex-row items-center justify-between gap-4">
         <h1 className="text-3xl font-bold tracking-tight text-primary">Órdenes de Trabajo</h1>
         <Button onClick={() => openForm()} className="bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90 text-white w-full md:w-auto">
@@ -271,25 +357,85 @@ const WorkOrdersPage = () => {
         />
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+        <TabsList>
           <TabsTrigger value="en-proceso">Órdenes en Proceso</TabsTrigger>
           <TabsTrigger value="realizadas">Órdenes Realizadas</TabsTrigger>
         </TabsList>
         <TabsContent value="en-proceso">
-            <OrderTable orders={enProcesoOrders} statusConfig={statusConfig} handleStatusChange={handleStatusChange} openDetail={openDetail} openForm={openForm} confirmDelete={confirmDelete} />
+          {renderTable(inProcessOrders)}
         </TabsContent>
         <TabsContent value="realizadas">
-            <OrderTable orders={realizadasOrders} statusConfig={statusConfig} handleStatusChange={handleStatusChange} openDetail={openDetail} openForm={openForm} confirmDelete={confirmDelete} />
+          {renderTable(finishedOrders)}
         </TabsContent>
       </Tabs>
 
-      <WorkOrderFormDialog isOpen={isFormOpen} onOpenChange={(isOpen) => { if (!isOpen) setCurrentOrder(null); setIsFormOpen(isOpen); }} onSave={handleSaveOrder} workOrder={currentOrder} onQuickAddCustomer={() => setIsCustomerFormOpen(true)} onQuickAddVehicle={() => setIsVehicleFormOpen(true)} onQuickAddProduct={openProductForm} />
-      <WorkOrderDetailDialog isOpen={isDetailOpen} onOpenChange={(isOpen) => { if (!isOpen) setCurrentOrder(null); setIsDetailOpen(isOpen); }} workOrder={currentOrder} statusColors={statusConfig} />
-      <Dialog open={isCustomerFormOpen} onOpenChange={setIsCustomerFormOpen}><DialogContent><DialogHeader><DialogTitle>Agregar Nuevo Cliente</DialogTitle></DialogHeader><CustomerForm onSave={handleSaveCustomer} onCancel={() => setIsCustomerFormOpen(false)} /></DialogContent></Dialog>
-      <Dialog open={isVehicleFormOpen} onOpenChange={setIsVehicleFormOpen}><DialogContent><DialogHeader><DialogTitle>Agregar Nuevo Vehículo</DialogTitle></DialogHeader><VehicleForm onSave={handleSaveVehicle} onCancel={() => setIsVehicleFormOpen(false)} customers={customers} /></DialogContent></Dialog>
-      <Dialog open={isProductFormOpen} onOpenChange={setIsProductFormOpen}><DialogContent className="sm:max-w-md"><DialogHeader><DialogTitle>Nuevo {productFormType === 'Venta' ? 'Servicio' : 'Producto'}</DialogTitle></DialogHeader><ProductForm onSave={handleSaveProduct} onCancel={() => setIsProductFormOpen(false)} productType={productFormType} workPriceHour={organization?.work_price_hour || 0} /></DialogContent></Dialog>
-      <AlertDialog open={!!orderToDelete} onOpenChange={() => setOrderToDelete(null)}><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>¿Estás seguro?</AlertDialogTitle><AlertDialogDescription>Esta acción no se puede deshacer. Esto eliminará permanentemente la orden de trabajo.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancelar</AlertDialogCancel><AlertDialogAction onClick={handleDeleteOrder} className="bg-destructive hover:bg-destructive/90">Eliminar</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
+
+      <WorkOrderFormDialog
+        isOpen={isFormOpen}
+        onOpenChange={(isOpen) => { if (!isOpen) setCurrentOrder(null); setIsFormOpen(isOpen); }}
+        onSave={handleSaveOrder}
+        workOrder={currentOrder}
+        onQuickAddCustomer={() => setIsCustomerFormOpen(true)}
+        onQuickAddVehicle={() => setIsVehicleFormOpen(true)}
+        onQuickAddProduct={openProductForm}
+      />
+
+      <WorkOrderDetailDialog
+        isOpen={isDetailOpen}
+        onOpenChange={(isOpen) => { if (!isOpen) setCurrentOrder(null); setIsDetailOpen(isOpen); }}
+        workOrder={currentOrder}
+        statusColors={statusConfig}
+      />
+
+      <Dialog open={isCustomerFormOpen} onOpenChange={setIsCustomerFormOpen}>
+          <DialogContent>
+              <DialogHeader>
+                  <DialogTitle>Agregar Nuevo Cliente</DialogTitle>
+              </DialogHeader>
+              <CustomerForm onSave={handleSaveCustomer} onCancel={() => setIsCustomerFormOpen(false)} />
+          </DialogContent>
+      </Dialog>
+
+      <Dialog open={isVehicleFormOpen} onOpenChange={setIsVehicleFormOpen}>
+          <DialogContent>
+              <DialogHeader>
+                  <DialogTitle>Agregar Nuevo Vehículo</DialogTitle>
+              </DialogHeader>
+              <VehicleForm onSave={handleSaveVehicle} onCancel={() => setIsVehicleFormOpen(false)} customers={customers} />
+          </DialogContent>
+      </Dialog>
+
+      <Dialog open={isProductFormOpen} onOpenChange={setIsProductFormOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Nuevo {productFormType === 'Venta' ? 'Servicio' : 'Producto'}</DialogTitle>
+          </DialogHeader>
+          <ProductForm 
+            onSave={handleSaveProduct} 
+            onCancel={() => setIsProductFormOpen(false)} 
+            productType={productFormType}
+            workPriceHour={organization?.work_price_hour || 0}
+          />
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={!!orderToDelete} onOpenChange={() => setOrderToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción no se puede deshacer. Esto eliminará permanentemente la orden de trabajo.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteOrder} className="bg-destructive hover:bg-destructive/90">
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </motion.div>
   );
 };

@@ -22,7 +22,11 @@ const PurchaseFormHeader = ({ formData, onFormDataChange, onQuickAddSupplier, su
   };
 
   const handleDocumentNumberBlur = () => {
-    const paddedNumber = documentNumber.padStart(8, '0');
+    let num = parseInt(documentNumber, 10) || 0;
+    if (num === 0) {
+        num = 1;
+    }
+    const paddedNumber = String(num).padStart(8, '0');
     setDocumentNumber(paddedNumber);
     onFormDataChange('document_number_parts', { ...formData.document_number_parts, number: paddedNumber });
   };

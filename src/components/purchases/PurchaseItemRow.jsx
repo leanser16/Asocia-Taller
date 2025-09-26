@@ -89,13 +89,9 @@ const PurchaseItemRow = ({ item, index, handleItemChange, removeItem, canRemove,
                     />
                 </div>
                 <div>
-                    <Label>IVA ($)</Label>
-                    <Input value={formatCurrency(item.ivaAmount)} readOnly className="font-semibold bg-muted/50" />
-                </div>
-                <div>
                     <Label htmlFor={`item-iva-${index}`}>IVA (%)</Label>
                     <Select value={String(item.iva)} onValueChange={(value) => handleLocalChange('iva', value)}>
-                        <SelectTrigger id={`item-iva-${index}`}>
+                        <SelectTrigger id={`item-iva-${index}`} className="flex-grow">
                             <SelectValue placeholder="IVA" />
                         </SelectTrigger>
                         <SelectContent>
@@ -121,6 +117,9 @@ const PurchaseItemRow = ({ item, index, handleItemChange, removeItem, canRemove,
                         disabled={calculationMode === 'net'}
                         className={cn("font-semibold", calculationMode === 'net' && "bg-muted/50 cursor-not-allowed")}
                     />
+                    <div className="text-sm font-medium mt-1">
+                        IVA: {formatCurrency(item.ivaAmount)}
+                    </div>
                 </div>
             </div>
 
