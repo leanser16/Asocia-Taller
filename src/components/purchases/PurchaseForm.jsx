@@ -154,7 +154,7 @@ const PurchaseForm = ({ purchase, onSave, onCancel, onQuickAddSupplier, toast })
         if (field === 'productId') {
             const selectedProduct = purchaseProducts.find(p => p.id === value);
             if (selectedProduct) {
-                currentItem.description = selected.name;
+                currentItem.description = selectedProduct.name;
                 currentItem.unitPrice = selectedProduct.cost;
                  if (currentItem.calculationMode === 'total') {
                    currentItem.calculationMode = 'net'; 

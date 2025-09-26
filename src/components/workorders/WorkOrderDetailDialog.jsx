@@ -54,7 +54,10 @@ const WorkOrderDetailDialog = ({ isOpen, onOpenChange, workOrder, statusColors }
   const { user, organization } = useAuth();
   const { customers = [], vehicles = [] } = data;
 
-  if (!workOrd// --- Robust Parsing Logic ---
+  if (!workOrder) { // Ensure workOrder is defined before proceeding
+    return null;
+  }
+  // --- Robust Parsing Logic starts here ---
   const separator = '---DATA---';
   const separatorIndex = (workOrder.notes || '').indexOf(separator);
   let userNotes = '';
