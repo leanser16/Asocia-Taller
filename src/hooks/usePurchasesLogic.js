@@ -27,7 +27,7 @@ export const usePurchasesLogic = () => {
       due_date: dueDate,
       document_type: documentType,
       payment_type: paymentType,
-      status: purchaseData.balance > 0.009 ? 'Pendiente de Pago' : 'Pagada',
+      status: paymentType === 'Cuenta Corriente' ? 'Pendiente de Pago' : (purchaseData.balance > 0.009 ? 'Pendiente de Pago' : 'Pagada'),
     };
     
     const supplierName = suppliers.find(s => s.id === supplierId)?.name || 'N/A';
